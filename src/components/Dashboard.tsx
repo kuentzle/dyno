@@ -12,7 +12,7 @@ interface DashboardProps {
 
 export function Dashboard({ telemetry, profile, onBack }: DashboardProps) {
     const {
-        currentEmaPS, currentBwPS, maxEmaPS, maxBwPS, speedKmh, hasPermission, requestPermissions,
+        currentEmaPS, currentBwPS, maxEmaPS, maxBwPS, speedKmh, fusionSpeedKmh, hasPermission, requestPermissions,
         isCalibrating, calibProgress, calibrationError, debugLog, gForce,
         history, isPaused, togglePause, rawForwardA, emaA, bwA, resetMaxEmaPS, resetMaxBwPS
     } = telemetry;
@@ -102,12 +102,22 @@ export function Dashboard({ telemetry, profile, onBack }: DashboardProps) {
             </div>
 
             <div className="flex w-full max-w-sm gap-3 mt-2">
-                {/* SPEED */}
-                <div className="flex-1 glass-panel p-3 flex flex-col items-center justify-center">
-                    <span className="text-2xl font-mono font-bold text-white tracking-tighter">
-                        {Math.round(speedKmh)}
-                    </span>
-                    <span className="text-[10px] text-gray-400 uppercase tracking-widest mt-1">km/h</span>
+                {/* SPEED MODULE */}
+                <div className="flex-1 glass-panel p-2 flex flex-col items-center justify-center gap-1">
+                    {/* FUSION SPEED (Big) */}
+                    <div className="flex flex-col items-center leading-none">
+                        <span className="text-3xl font-mono font-bold text-white tracking-tighter">
+                            {Math.round(fusionSpeedKmh)}
+                        </span>
+                        <span className="text-[9px] text-[var(--color-neon-blue)] uppercase tracking-widest mt-1 font-bold">Fusion km/h</span>
+                    </div>
+                    {/* GPS SPEED (Small reference) */}
+                    <div className="flex flex-col items-center leading-none mt-1 pt-1 border-t border-zinc-800 w-full">
+                        <span className="text-sm font-mono font-bold text-gray-400 tracking-tighter">
+                            {Math.round(speedKmh)}
+                        </span>
+                        <span className="text-[8px] text-gray-600 uppercase tracking-widest">GPS km/h</span>
+                    </div>
                 </div>
 
                 {/* PEAK HP EMA */}
@@ -141,7 +151,8 @@ export function Dashboard({ telemetry, profile, onBack }: DashboardProps) {
                         <span className="text-[#00ffcc]">Engine (BW)</span>
                         <span className="text-[#ff0055]">Wheel (EMA)</span>
                         <span className="text-[#ffaa00]">Wheel (BW)</span>
-                        <span className="text-white">Speed</span>
+                        <span className="text-[#00ffcc]">Fusion Spd</span>
+                        <span className="text-white">GPS Spd</span>
                     </div>
                 </div>
 
@@ -176,7 +187,7 @@ export function Dashboard({ telemetry, profile, onBack }: DashboardProps) {
                                 itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
                                 labelStyle={{ display: 'none' }}
                                 formatter={(value: any, name: any) => {
-                                    const names: any = { enginePsEma: 'Engine EMA', wheelPsEma: 'Wheel EMA', enginePsBw: 'Engine BW', wheelPsBw: 'Wheel BW', speed: 'Speed' };
+                                    const names: any = { enginePsEma: 'Engine EMA', wheelPsEma: 'Wheel EMA', enginePsBw: 'Engine BW', wheelPsBw: 'Wheel BW', speed: 'GPS km/h', fusionSpeedKmh: 'Fusion km/h' };
                                     return [Math.round(value as number), names[name] || name];
                                 }}
                             />
@@ -184,7 +195,9 @@ export function Dashboard({ telemetry, profile, onBack }: DashboardProps) {
                             <Line yAxisId="left" type="monotone" dataKey="wheelPsEma" stroke="#ff0055" strokeWidth={2} dot={false} isAnimationActive={false} />
                             <Line yAxisId="left" type="monotone" dataKey="enginePsBw" stroke="#00ffcc" strokeWidth={2} dot={false} isAnimationActive={false} />
                             <Line yAxisId="left" type="monotone" dataKey="wheelPsBw" stroke="#ffaa00" strokeWidth={2} dot={false} isAnimationActive={false} />
-                            <Line yAxisId="right" type="monotone" dataKey="speed" stroke="#ffffff" strokeWidth={1} dot={false} isAnimationActive={false} opacity={0.5} />
+
+                            <Line yAxisId="right" type="monotone" dataKey="fusionSpeedKmh" stroke="#00ffcc" strokeWidth={2} dot={false} isAnimationActive={false} />
+                            <Line yAxisId="right" type="monotone" dataKey="speed" stroke="#ffffff" strokeWidth={1} strokeDasharray="3 3" dot={false} isAnimationActive={false} opacity={0.5} />
 
                             {/* Peak annotations */}
                             {peakEngineEmaPoint && peakEngineEmaPoint.enginePsEma > 0 && (

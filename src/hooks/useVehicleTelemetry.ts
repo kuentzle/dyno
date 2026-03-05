@@ -6,6 +6,7 @@ const SMOOTHING_WINDOW = 12; // ~200ms at 60Hz sensor rate
 
 export function useVehicleTelemetry(profile: VehicleProfile) {
     const [speedKmh, setSpeedKmh] = useState(0);
+    const [fusionSpeedKmh, setFusionSpeedKmh] = useState(0);
     const [currentEmaPS, setCurrentEmaPS] = useState(0);
     const [currentBwPS, setCurrentBwPS] = useState(0);
     const [maxEmaPS, setMaxEmaPS] = useState(0);
@@ -30,6 +31,7 @@ export function useVehicleTelemetry(profile: VehicleProfile) {
         emaA: number,
         bwA: number,
         speed: number,
+        fusionSpeedKmh: number,
         wheelPsEma: number,
         enginePsEma: number,
         wheelPsBw: number,
@@ -79,10 +81,10 @@ export function useVehicleTelemetry(profile: VehicleProfile) {
     }, [hasPermission]);
 
     // Keep latest state in a ref to avoid recreating the devicemotion listener
-    const stateRef = useRef({ isCalibrating, gravityVec, speedKmh, profile, maxEmaPS, maxBwPS, isPaused });
+    const stateRef = useRef({ isCalibrating, gravityVec, speedKmh, fusionSpeedKmh, profile, maxEmaPS, maxBwPS, isPaused });
     useEffect(() => {
-        stateRef.current = { isCalibrating, gravityVec, speedKmh, profile, maxEmaPS, maxBwPS, isPaused };
-    }, [isCalibrating, gravityVec, speedKmh, profile, maxEmaPS, maxBwPS, isPaused]);
+        stateRef.current = { isCalibrating, gravityVec, speedKmh, fusionSpeedKmh, profile, maxEmaPS, maxBwPS, isPaused };
+    }, [isCalibrating, gravityVec, speedKmh, fusionSpeedKmh, profile, maxEmaPS, maxBwPS, isPaused]);
 
     // --- ACCELEROMETER FUSION ---
     useEffect(() => {
@@ -99,7 +101,16 @@ export function useVehicleTelemetry(profile: VehicleProfile) {
         const ALPHA = 0.05;
         const bwFilter = new ButterworthFilter();
 
+        // Fusion Speed Variables
+        let lastMotionTime = performance.now();
+        let currentFusionSpeedMs = 0;
+        const COMPLEMENTARY_ALPHA = 0.98; // 98% trust in integrated accelerometer, 2% trust in GPS
+
         const handleMotion = (event: DeviceMotionEvent) => {
+            const nowTime = performance.now();
+            const dt = (nowTime - lastMotionTime) / 1000; // in seconds
+            lastMotionTime = nowTime;
+
             totalEventsCount++;
             const state = stateRef.current;
             const accWithGravity = event.accelerationIncludingGravity;
@@ -188,7 +199,26 @@ export function useVehicleTelemetry(profile: VehicleProfile) {
             emaFilterValue = emaFilterValue === 0 ? forwardA : ALPHA * forwardA + (1 - ALPHA) * emaFilterValue;
             const bwFilterValue = bwFilter.filter(forwardA);
 
-            const speedMs = state.speedKmh / 3.6;
+            // --- FUSION SPEED CALCULATION (Complementary Filter) ---
+            // 1. Integrate the clean acceleration (Butterworth) to get temporary speed
+            // dt is typically ~0.016s (60Hz)
+            if (!state.isCalibrating && dt > 0 && dt < 0.1) {
+                currentFusionSpeedMs += bwFilterValue * dt;
+
+                // Prevent going strictly backwards if we expect forward motion only (optional, but good for Dynos)
+                if (currentFusionSpeedMs < 0) currentFusionSpeedMs = 0;
+            }
+
+            // 2. Complementary Filter magic: slowly pull the fusion speed towards the rock-solid GPS speed
+            // If GPS says 50km/h (13.89 m/s) and we integrated 52km/h (14.44 m/s), 
+            // this gently corrects the drift every frame without snapping
+            const gpsSpeedMs = state.speedKmh / 3.6;
+            currentFusionSpeedMs = COMPLEMENTARY_ALPHA * currentFusionSpeedMs + (1 - COMPLEMENTARY_ALPHA) * gpsSpeedMs;
+
+            const fusionKmh = currentFusionSpeedMs * 3.6;
+
+            // Use the fast, fusion-corrected speed for power calculations!
+            const speedMs = currentFusionSpeedMs;
 
             // EMA Power Calculation
             const wattsScaleBaseEma = calculateEnginePower(emaFilterValue, speedMs, state.profile);
@@ -220,10 +250,11 @@ export function useVehicleTelemetry(profile: VehicleProfile) {
                             emaA: emaFilterValue,
                             bwA: bwFilterValue,
                             speed: state.speedKmh,
-                            wheelPsEma,
-                            enginePsEma,
-                            wheelPsBw,
-                            enginePsBw
+                            fusionSpeedKmh: fusionKmh,
+                            wheelPsEma: wheelPsEma,
+                            enginePsEma: enginePsEma,
+                            wheelPsBw: wheelPsBw,
+                            enginePsBw: enginePsBw,
                         }];
                         // Store up to 300 points (approx 20 seconds at 15fps)
                         if (next.length > 300) next.shift();
@@ -264,6 +295,7 @@ export function useVehicleTelemetry(profile: VehicleProfile) {
         setMaxBwPS(0);
         setCurrentEmaPS(0);
         setCurrentBwPS(0);
+        setFusionSpeedKmh(0);
         setHistory([]);
         setIsPaused(false);
         setDebugLog("Reset calibration.");
@@ -284,6 +316,7 @@ export function useVehicleTelemetry(profile: VehicleProfile) {
         hasPermission,
         requestPermissions,
         speedKmh,
+        fusionSpeedKmh,
         currentEmaPS,
         currentBwPS,
         maxEmaPS,
