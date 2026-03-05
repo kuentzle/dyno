@@ -5,9 +5,10 @@ interface ProfileFormProps {
     profile: VehicleProfile;
     onChange: (key: keyof VehicleProfile, value: number) => void;
     onStart: () => void;
+    onReset?: () => void;
 }
 
-export function ProfileForm({ profile, onChange, onStart }: ProfileFormProps) {
+export function ProfileForm({ profile, onChange, onStart, onReset }: ProfileFormProps) {
     return (
         <div className="glass-panel w-full max-w-sm p-6 flex flex-col gap-5 text-left">
             <div className="text-center mb-2">
@@ -63,12 +64,22 @@ export function ProfileForm({ profile, onChange, onStart }: ProfileFormProps) {
                 <p className="text-xs text-gray-500 mt-1">Used to convert expected wheel power to engine horsepower.</p>
             </div>
 
-            <button
-                className="mt-6 bg-gradient-to-r from-[var(--color-neon-blue)] to-blue-600 text-black font-bold py-4 px-6 rounded-lg w-full active:scale-95 transition-transform shadow-[0_0_15px_rgba(0,243,255,0.4)]"
-                onClick={onStart}
-            >
-                Start Calibration
-            </button>
+            <div className="flex gap-3 mt-4">
+                {onReset && (
+                    <button
+                        className="border border-zinc-700 hover:bg-zinc-800 text-gray-300 font-bold py-4 px-4 rounded-lg active:scale-95 transition-all text-sm"
+                        onClick={onReset}
+                    >
+                        Reset
+                    </button>
+                )}
+                <button
+                    className="flex-1 bg-gradient-to-r from-[var(--color-neon-blue)] to-blue-600 text-black font-bold py-4 px-6 rounded-lg w-full active:scale-95 transition-transform shadow-[0_0_15px_rgba(0,243,255,0.4)]"
+                    onClick={onStart}
+                >
+                    Start Calibration
+                </button>
+            </div>
         </div>
     );
 }

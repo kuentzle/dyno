@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 export interface VehicleProfile {
     massKg: number;
@@ -7,10 +7,10 @@ export interface VehicleProfile {
     drivetrainLoss: number;
 }
 
-const DEFAULT_PROFILE: VehicleProfile = {
-    massKg: 1500,
-    dragCoefficient: 0.30,
-    frontalAreaM2: 2.2,
+export const DEFAULT_PROFILE: VehicleProfile = {
+    massKg: 2370,
+    dragCoefficient: 0.32,
+    frontalAreaM2: 2.83,
     drivetrainLoss: 0.15, // 15% manual FWD default
 };
 
@@ -31,5 +31,10 @@ export function useVehicleProfile() {
         localStorage.setItem('power_meter_profile', JSON.stringify(profile));
     }, [profile]);
 
-    return { profile, setProfile };
+    const resetProfile = useCallback(() => {
+        localStorage.removeItem('power_meter_profile');
+        setProfile(DEFAULT_PROFILE);
+    }, []);
+
+    return { profile, setProfile, resetProfile };
 }
