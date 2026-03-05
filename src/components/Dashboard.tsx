@@ -148,11 +148,7 @@ export function Dashboard({ telemetry, profile, onBack }: DashboardProps) {
                 <div className="flex justify-between items-center">
                     <div className="flex flex-wrap gap-2 text-[10px] font-bold tracking-wider uppercase">
                         <span className="text-[var(--color-neon-blue)]">Engine (EMA)</span>
-                        <span className="text-[#00ffcc]">Engine (BW)</span>
-                        <span className="text-[#ff0055]">Wheel (EMA)</span>
-                        <span className="text-[#ffaa00]">Wheel (BW)</span>
-                        <span className="text-[#00ffcc]">Fusion Spd</span>
-                        <span className="text-white">GPS Spd</span>
+                        <span className="text-[#ffaa00]">Engine (BW)</span>
                     </div>
                 </div>
 
@@ -187,16 +183,13 @@ export function Dashboard({ telemetry, profile, onBack }: DashboardProps) {
                                 itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
                                 labelStyle={{ display: 'none' }}
                                 formatter={(value: any, name: any) => {
-                                    const names: any = { enginePsEma: 'Engine EMA', wheelPsEma: 'Wheel EMA', enginePsBw: 'Engine BW', wheelPsBw: 'Wheel BW', speed: 'GPS km/h', fusionSpeedKmh: 'Fusion km/h' };
+                                    const names: any = { enginePsEma: 'Engine EMA', enginePsBw: 'Engine BW', speed: 'GPS km/h' };
                                     return [Math.round(value as number), names[name] || name];
                                 }}
                             />
                             <Line yAxisId="left" type="monotone" dataKey="enginePsEma" stroke="var(--color-neon-blue)" strokeWidth={2} dot={false} isAnimationActive={false} />
-                            <Line yAxisId="left" type="monotone" dataKey="wheelPsEma" stroke="#ff0055" strokeWidth={2} dot={false} isAnimationActive={false} />
-                            <Line yAxisId="left" type="monotone" dataKey="enginePsBw" stroke="#00ffcc" strokeWidth={2} dot={false} isAnimationActive={false} />
-                            <Line yAxisId="left" type="monotone" dataKey="wheelPsBw" stroke="#ffaa00" strokeWidth={2} dot={false} isAnimationActive={false} />
+                            <Line yAxisId="left" type="monotone" dataKey="enginePsBw" stroke="#ffaa00" strokeWidth={2} dot={false} isAnimationActive={false} />
 
-                            <Line yAxisId="right" type="monotone" dataKey="fusionSpeedKmh" stroke="#00ffcc" strokeWidth={2} dot={false} isAnimationActive={false} />
                             <Line yAxisId="right" type="monotone" dataKey="speed" stroke="#ffffff" strokeWidth={1} strokeDasharray="3 3" dot={false} isAnimationActive={false} opacity={0.5} />
 
                             {/* Peak annotations */}
@@ -205,12 +198,66 @@ export function Dashboard({ telemetry, profile, onBack }: DashboardProps) {
                                     label={{ value: `${Math.round(peakEngineEmaPoint.enginePsEma)}`, position: 'top', fill: 'var(--color-neon-blue)', fontSize: 9, fontWeight: 'bold' }} />
                             )}
                             {peakEngineBwPoint && peakEngineBwPoint.enginePsBw > 0 && (
-                                <ReferenceDot yAxisId="left" x={peakEngineBwPoint.time} y={peakEngineBwPoint.enginePsBw} r={3} fill="#00ffcc" stroke="none"
-                                    label={{ value: `${Math.round(peakEngineBwPoint.enginePsBw)}`, position: 'bottom', fill: '#00ffcc', fontSize: 9, fontWeight: 'bold' }} />
+                                <ReferenceDot yAxisId="left" x={peakEngineBwPoint.time} y={peakEngineBwPoint.enginePsBw} r={3} fill="#ffaa00" stroke="none"
+                                    label={{ value: `${Math.round(peakEngineBwPoint.enginePsBw)}`, position: 'bottom', fill: '#ffaa00', fontSize: 9, fontWeight: 'bold' }} />
                             )}
                             {peakSpeedPoint && peakSpeedPoint.speed > 0 && (
                                 <ReferenceDot yAxisId="right" x={peakSpeedPoint.time} y={peakSpeedPoint.speed} r={2} fill="#ffffff" stroke="none"
                                     label={{ value: `${Math.round(peakSpeedPoint.speed)} km/h`, position: 'right', fill: '#ffffff', fontSize: 8, fontWeight: 'bold' }} />
+                            )}
+
+                            {/* Live Value Trackers */}
+                            {history.length > 0 && (
+                                <>
+                                    <ReferenceDot yAxisId="left" x={history[history.length - 1].time} y={history[history.length - 1].enginePsEma} r={3} fill="var(--color-neon-blue)" stroke="white"
+                                        label={{ value: `${Math.round(history[history.length - 1].enginePsEma)}`, position: 'right', fill: 'var(--color-neon-blue)', fontSize: 10, fontWeight: 'bold' }} />
+                                    <ReferenceDot yAxisId="left" x={history[history.length - 1].time} y={history[history.length - 1].enginePsBw} r={3} fill="#ffaa00" stroke="white"
+                                        label={{ value: `${Math.round(history[history.length - 1].enginePsBw)}`, position: 'right', fill: '#ffaa00', fontSize: 10, fontWeight: 'bold' }} />
+                                </>
+                            )}
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
+
+                {/* SPEED GRAPH (Fusion vs GPS) */}
+                <div className="w-full mt-2">
+                    <div className="flex justify-between items-center mb-1 px-1">
+                        <div className="flex flex-wrap gap-2 text-[10px] font-bold tracking-wider uppercase">
+                            <span className="text-[#00ffcc]">Fusion Spd</span>
+                            <span className="text-white">GPS Spd</span>
+                        </div>
+                    </div>
+                    <ResponsiveContainer width="100%" height={100}>
+                        <LineChart data={history} margin={{ top: 5, right: 30, left: -20, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
+                            <XAxis dataKey="time" hide />
+                            <YAxis
+                                tickFormatter={(val) => Math.round(val).toString()}
+                                stroke="#666"
+                                fontSize={10}
+                                axisLine={false}
+                                tickLine={false}
+                            />
+                            <Tooltip
+                                contentStyle={{ backgroundColor: 'rgba(0,0,0,0.8)', border: '1px solid #333', borderRadius: '8px' }}
+                                itemStyle={{ fontSize: '11px', fontWeight: 'bold' }}
+                                labelStyle={{ display: 'none' }}
+                                formatter={(value: any, name: any) => {
+                                    const labels: any = { speed: 'GPS km/h', fusionSpeedKmh: 'Fusion km/h' };
+                                    return [Math.round(value as number), labels[name] || name];
+                                }}
+                            />
+                            <Line type="monotone" dataKey="fusionSpeedKmh" stroke="#00ffcc" strokeWidth={2} dot={false} isAnimationActive={false} />
+                            <Line type="monotone" dataKey="speed" stroke="#ffffff" strokeWidth={1} strokeDasharray="3 3" dot={false} isAnimationActive={false} opacity={0.5} />
+
+                            {/* Live Value Trackers */}
+                            {history.length > 0 && (
+                                <>
+                                    <ReferenceDot x={history[history.length - 1].time} y={history[history.length - 1].fusionSpeedKmh} r={3} fill="#00ffcc" stroke="white"
+                                        label={{ value: `${Math.round(history[history.length - 1].fusionSpeedKmh)}`, position: 'right', fill: '#00ffcc', fontSize: 10, fontWeight: 'bold' }} />
+                                    <ReferenceDot x={history[history.length - 1].time} y={history[history.length - 1].speed} r={2} fill="#ffffff" stroke="none"
+                                        label={{ value: `${Math.round(history[history.length - 1].speed)}`, position: 'right', fill: '#ffffff', fontSize: 9, fontWeight: 'bold', opacity: 0.7 }} />
+                                </>
                             )}
                         </LineChart>
                     </ResponsiveContainer>
@@ -246,21 +293,28 @@ export function Dashboard({ telemetry, profile, onBack }: DashboardProps) {
                                 itemStyle={{ fontSize: '11px', fontWeight: 'bold' }}
                                 labelStyle={{ display: 'none' }}
                                 formatter={(value: any, name: any) => {
-                                    const labels: any = { gFwd: 'Raw G', emaA: 'EMA', bwA: 'Butterworth', aY: 'forwardA' };
+                                    const labels: any = { emaA: 'EMA', bwA: 'Butterworth', aY: 'forwardA' };
                                     return [Number(value).toFixed(3), labels[name] || name];
                                 }}
                             />
-                            {/* Raw G Force (Original) */}
-                            <Line type="monotone" dataKey="gFwd" stroke="#555555" strokeWidth={1} dot={false} isAnimationActive={false} />
-
                             {/* raw forwardA = Purple */}
                             <Line type="monotone" dataKey="aY" stroke="#9d00ff" strokeWidth={1.5} dot={false} isAnimationActive={false} opacity={0.5} />
 
                             {/* EMA = Neon Blue */}
                             <Line type="monotone" dataKey="emaA" stroke="var(--color-neon-blue)" strokeWidth={2} dot={false} isAnimationActive={false} />
 
-                            {/* Butterworth = Neon Green/Cyan */}
-                            <Line type="monotone" dataKey="bwA" stroke="#00ffcc" strokeWidth={2} dot={false} isAnimationActive={false} />
+                            {/* Butterworth = Orange */}
+                            <Line type="monotone" dataKey="bwA" stroke="#ffaa00" strokeWidth={2} dot={false} isAnimationActive={false} />
+
+                            {/* Live Value Trackers */}
+                            {history.length > 0 && (
+                                <>
+                                    <ReferenceDot x={history[history.length - 1].time} y={history[history.length - 1].emaA} r={3} fill="var(--color-neon-blue)" stroke="white"
+                                        label={{ value: `${history[history.length - 1].emaA.toFixed(2)}`, position: 'left', fill: 'var(--color-neon-blue)', fontSize: 10, fontWeight: 'bold' }} />
+                                    <ReferenceDot x={history[history.length - 1].time} y={history[history.length - 1].bwA} r={3} fill="#ffaa00" stroke="white"
+                                        label={{ value: `${history[history.length - 1].bwA.toFixed(2)}`, position: 'bottom', fill: '#ffaa00', fontSize: 10, fontWeight: 'bold' }} />
+                                </>
+                            )}
                         </LineChart>
                     </ResponsiveContainer>
                 </div>
@@ -269,7 +323,7 @@ export function Dashboard({ telemetry, profile, onBack }: DashboardProps) {
                 <div className="w-full flex flex-col px-4 mt-2 mb-2 text-[11px] font-mono gap-1 leading-tight bg-black/40 p-2 rounded-lg border border-zinc-800">
                     <div className="flex w-full justify-between">
                         <span style={{ color: 'var(--color-neon-blue)' }}>EMA: {emaA.toFixed(3)}</span>
-                        <span style={{ color: '#00ffcc' }}>BW: {bwA.toFixed(3)}</span>
+                        <span style={{ color: '#ffaa00' }}>BW: {bwA.toFixed(3)}</span>
                     </div>
                     <div className="flex w-full justify-center mt-1 border-t border-zinc-800 pt-1">
                         <span style={{ color: '#9d00ff', fontWeight: 'bold' }}>forwardA (m/s²): {rawForwardA.toFixed(3)}</span>
