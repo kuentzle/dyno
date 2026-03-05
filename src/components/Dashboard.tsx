@@ -12,9 +12,10 @@ interface DashboardProps {
 
 export function Dashboard({ telemetry, profile, onBack }: DashboardProps) {
     const {
-        currentEmaPS, currentBwPS, maxEmaPS, maxBwPS, speedKmh, fusionSpeedKmh, hasPermission, requestPermissions,
+        currentEmaPS, currentBwPS, currentFusionEmaPS, currentFusionBwPS,
+        maxEmaPS, maxBwPS, maxFusionEmaPS, maxFusionBwPS, speedKmh, fusionSpeedKmh, hasPermission, requestPermissions,
         isCalibrating, calibProgress, calibrationError, debugLog, gForce,
-        history, isPaused, togglePause, rawForwardA, emaA, bwA, resetMaxEmaPS, resetMaxBwPS
+        history, isPaused, togglePause, rawForwardA, emaA, bwA, resetMaxEmaPS, resetMaxBwPS, resetMaxFusionEmaPS, resetMaxFusionBwPS
     } = telemetry;
 
     if (hasPermission === null) {
@@ -122,24 +123,48 @@ export function Dashboard({ telemetry, profile, onBack }: DashboardProps) {
 
                 {/* PEAK HP EMA */}
                 <div
-                    className="flex-1 glass-panel p-3 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-colors"
+                    className="flex-1 glass-panel p-2 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-colors gap-1"
                     onClick={resetMaxEmaPS}
                 >
-                    <span className="text-2xl font-mono font-bold text-[var(--color-neon-blue)] tracking-tighter">
+                    <span className="text-xl font-mono font-bold text-[var(--color-neon-blue)] tracking-tighter leading-none">
                         {Math.round(maxEmaPS)}
                     </span>
-                    <span className="text-[10px] text-[var(--color-neon-blue)] uppercase tracking-widest mt-1">Peak EMA</span>
+                    <span className="text-[8px] text-[var(--color-neon-blue)] uppercase tracking-widest leading-none">Peak EMA (GPS)</span>
                 </div>
 
                 {/* PEAK HP BW */}
                 <div
-                    className="flex-1 glass-panel p-3 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-colors"
+                    className="flex-1 glass-panel p-2 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-colors gap-1"
                     onClick={resetMaxBwPS}
                 >
-                    <span className="text-2xl font-mono font-bold text-[#00ffcc] tracking-tighter">
+                    <span className="text-xl font-mono font-bold text-[#ffaa00] tracking-tighter leading-none">
                         {Math.round(maxBwPS)}
                     </span>
-                    <span className="text-[10px] text-[#00ffcc] uppercase tracking-widest mt-1">Peak BW</span>
+                    <span className="text-[8px] text-[#ffaa00] uppercase tracking-widest leading-none">Peak BW (GPS)</span>
+                </div>
+            </div>
+
+            <div className="flex w-full max-w-sm gap-3 mt-2">
+                {/* PEAK HP EMA FUSION */}
+                <div
+                    className="flex-1 glass-panel p-2 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-colors gap-1"
+                    onClick={resetMaxFusionEmaPS}
+                >
+                    <span className="text-xl font-mono font-bold text-[#ff00ff] tracking-tighter leading-none">
+                        {Math.round(maxFusionEmaPS)}
+                    </span>
+                    <span className="text-[8px] text-[#ff00ff] uppercase tracking-widest leading-none text-center">Peak EMA<br />(Fusion)</span>
+                </div>
+
+                {/* PEAK HP BW FUSION */}
+                <div
+                    className="flex-1 glass-panel p-2 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-colors gap-1"
+                    onClick={resetMaxFusionBwPS}
+                >
+                    <span className="text-xl font-mono font-bold text-[#ffff00] tracking-tighter leading-none">
+                        {Math.round(maxFusionBwPS)}
+                    </span>
+                    <span className="text-[8px] text-[#ffff00] uppercase tracking-widest leading-none text-center">Peak BW<br />(Fusion)</span>
                 </div>
             </div>
 
@@ -147,8 +172,10 @@ export function Dashboard({ telemetry, profile, onBack }: DashboardProps) {
             <div className="w-full max-w-sm glass-panel p-4 flex flex-col gap-4">
                 <div className="flex justify-between items-center">
                     <div className="flex flex-wrap gap-2 text-[10px] font-bold tracking-wider uppercase">
-                        <span className="text-[var(--color-neon-blue)]">Engine (EMA)</span>
-                        <span className="text-[#ffaa00]">Engine (BW)</span>
+                        <span className="text-[var(--color-neon-blue)]">Engine EMA (GPS)</span>
+                        <span className="text-[#ffaa00]">Engine BW (GPS)</span>
+                        <span className="text-[#ff00ff]">Engine EMA (Fus)</span>
+                        <span className="text-[#ffff00]">Engine BW (Fus)</span>
                     </div>
                 </div>
 
@@ -183,12 +210,15 @@ export function Dashboard({ telemetry, profile, onBack }: DashboardProps) {
                                 itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
                                 labelStyle={{ display: 'none' }}
                                 formatter={(value: any, name: any) => {
-                                    const names: any = { enginePsEma: 'Engine EMA', enginePsBw: 'Engine BW', speed: 'GPS km/h' };
+                                    const names: any = { enginePsEma: 'Engine EMA (GPS)', enginePsBw: 'Engine BW (GPS)', fusionEnginePsEma: 'Engine EMA (Fus)', fusionEnginePsBw: 'Engine BW (Fus)', speed: 'GPS km/h' };
                                     return [Math.round(value as number), names[name] || name];
                                 }}
                             />
                             <Line yAxisId="left" type="monotone" dataKey="enginePsEma" stroke="var(--color-neon-blue)" strokeWidth={2} dot={false} isAnimationActive={false} />
                             <Line yAxisId="left" type="monotone" dataKey="enginePsBw" stroke="#ffaa00" strokeWidth={2} dot={false} isAnimationActive={false} />
+
+                            <Line yAxisId="left" type="monotone" dataKey="fusionEnginePsEma" stroke="#ff00ff" strokeWidth={2} dot={false} isAnimationActive={false} />
+                            <Line yAxisId="left" type="monotone" dataKey="fusionEnginePsBw" stroke="#ffff00" strokeWidth={2} dot={false} isAnimationActive={false} />
 
                             <Line yAxisId="right" type="monotone" dataKey="speed" stroke="#ffffff" strokeWidth={1} strokeDasharray="3 3" dot={false} isAnimationActive={false} opacity={0.5} />
 
@@ -209,10 +239,14 @@ export function Dashboard({ telemetry, profile, onBack }: DashboardProps) {
                             {/* Live Value Trackers */}
                             {history.length > 0 && (
                                 <>
-                                    <ReferenceDot yAxisId="left" x={history[history.length - 1].time} y={history[history.length - 1].enginePsEma} r={3} fill="var(--color-neon-blue)" stroke="white"
-                                        label={{ value: `${Math.round(history[history.length - 1].enginePsEma)}`, position: 'right', fill: 'var(--color-neon-blue)', fontSize: 10, fontWeight: 'bold' }} />
-                                    <ReferenceDot yAxisId="left" x={history[history.length - 1].time} y={history[history.length - 1].enginePsBw} r={3} fill="#ffaa00" stroke="white"
-                                        label={{ value: `${Math.round(history[history.length - 1].enginePsBw)}`, position: 'right', fill: '#ffaa00', fontSize: 10, fontWeight: 'bold' }} />
+                                    <ReferenceDot yAxisId="left" x={history[history.length - 1].time} y={history[history.length - 1].enginePsEma} r={3} fill="var(--color-neon-blue)" stroke="none"
+                                        label={{ value: `${Math.round(history[history.length - 1].enginePsEma)}`, position: 'bottom', fill: 'var(--color-neon-blue)', fontSize: 10, fontWeight: 'bold' }} />
+                                    <ReferenceDot yAxisId="left" x={history[history.length - 1].time} y={history[history.length - 1].enginePsBw} r={3} fill="#ffaa00" stroke="none"
+                                        label={{ value: `${Math.round(history[history.length - 1].enginePsBw)}`, position: 'bottom', fill: '#ffaa00', fontSize: 10, fontWeight: 'bold' }} />
+                                    <ReferenceDot yAxisId="left" x={history[history.length - 1].time} y={history[history.length - 1].fusionEnginePsEma} r={3} fill="#ff00ff" stroke="none"
+                                        label={{ value: `${Math.round(history[history.length - 1].fusionEnginePsEma)}`, position: 'top', fill: '#ff00ff', fontSize: 10, fontWeight: 'bold' }} />
+                                    <ReferenceDot yAxisId="left" x={history[history.length - 1].time} y={history[history.length - 1].fusionEnginePsBw} r={3} fill="#ffff00" stroke="none"
+                                        label={{ value: `${Math.round(history[history.length - 1].fusionEnginePsBw)}`, position: 'top', fill: '#ffff00', fontSize: 10, fontWeight: 'bold' }} />
                                 </>
                             )}
                         </LineChart>

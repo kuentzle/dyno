@@ -6,8 +6,12 @@ export function useVehicleTelemetry(profile) {
     const [fusionSpeedKmh, setFusionSpeedKmh] = useState(0);
     const [currentEmaPS, setCurrentEmaPS] = useState(0);
     const [currentBwPS, setCurrentBwPS] = useState(0);
+    const [currentFusionEmaPS, setCurrentFusionEmaPS] = useState(0);
+    const [currentFusionBwPS, setCurrentFusionBwPS] = useState(0);
     const [maxEmaPS, setMaxEmaPS] = useState(0);
     const [maxBwPS, setMaxBwPS] = useState(0);
+    const [maxFusionEmaPS, setMaxFusionEmaPS] = useState(0);
+    const [maxFusionBwPS, setMaxFusionBwPS] = useState(0);
     const [rawForwardA, setRawForwardA] = useState(0);
     const [emaA, setEmaA] = useState(0);
     const [bwA, setBwA] = useState(0);
@@ -57,11 +61,10 @@ export function useVehicleTelemetry(profile) {
         }, (err) => console.warn('GPS Error', err), { enableHighAccuracy: true, maximumAge: 0 });
         return () => navigator.geolocation.clearWatch(geoId);
     }, [hasPermission]);
-    // Keep latest state in a ref to avoid recreating the devicemotion listener
-    const stateRef = useRef({ isCalibrating, gravityVec, speedKmh, fusionSpeedKmh, profile, maxEmaPS, maxBwPS, isPaused });
+    const stateRef = useRef({ isCalibrating, gravityVec, speedKmh, fusionSpeedKmh, profile, maxEmaPS, maxBwPS, maxFusionEmaPS, maxFusionBwPS, isPaused });
     useEffect(() => {
-        stateRef.current = { isCalibrating, gravityVec, speedKmh, fusionSpeedKmh, profile, maxEmaPS, maxBwPS, isPaused };
-    }, [isCalibrating, gravityVec, speedKmh, fusionSpeedKmh, profile, maxEmaPS, maxBwPS, isPaused]);
+        stateRef.current = { isCalibrating, gravityVec, speedKmh, fusionSpeedKmh, profile, maxEmaPS, maxBwPS, maxFusionEmaPS, maxFusionBwPS, isPaused };
+    }, [isCalibrating, gravityVec, speedKmh, fusionSpeedKmh, profile, maxEmaPS, maxBwPS, maxFusionEmaPS, maxFusionBwPS, isPaused]);
     // --- ACCELEROMETER FUSION ---
     useEffect(() => {
         if (hasPermission !== true)
@@ -173,16 +176,18 @@ export function useVehicleTelemetry(profile) {
             const gpsSpeedMs = state.speedKmh / 3.6;
             currentFusionSpeedMs = COMPLEMENTARY_ALPHA * currentFusionSpeedMs + (1 - COMPLEMENTARY_ALPHA) * gpsSpeedMs;
             const fusionKmh = currentFusionSpeedMs * 3.6;
-            // Use the fast, fusion-corrected speed for power calculations!
-            const speedMs = currentFusionSpeedMs;
-            // EMA Power Calculation
-            const wattsScaleBaseEma = calculateEnginePower(emaFilterValue, speedMs, state.profile);
+            // --- DEFAULT POWER (GPS SPEED) ---
+            const wattsScaleBaseEma = calculateEnginePower(emaFilterValue, gpsSpeedMs, state.profile);
             const enginePsEma = Math.max(0, wattsToPS(wattsScaleBaseEma));
             const wheelPsEma = Math.max(0, enginePsEma * (1 - state.profile.drivetrainLoss));
-            // Butterworth Power Calculation
-            const wattsScaleBaseBw = calculateEnginePower(bwFilterValue, speedMs, state.profile);
+            const wattsScaleBaseBw = calculateEnginePower(bwFilterValue, gpsSpeedMs, state.profile);
             const enginePsBw = Math.max(0, wattsToPS(wattsScaleBaseBw));
             const wheelPsBw = Math.max(0, enginePsBw * (1 - state.profile.drivetrainLoss));
+            // --- FUSION POWER (FUSION SPEED) ---
+            const wattsScaleFusionEma = calculateEnginePower(emaFilterValue, currentFusionSpeedMs, state.profile);
+            const fusionEnginePsEma = Math.max(0, wattsToPS(wattsScaleFusionEma));
+            const wattsScaleFusionBw = calculateEnginePower(bwFilterValue, currentFusionSpeedMs, state.profile);
+            const fusionEnginePsBw = Math.max(0, wattsToPS(wattsScaleFusionBw));
             const now = Date.now();
             // Push to rolling history for the debug graph (~15fps update rate is fine to match UI)
             if (now - lastUiUpdate > 66) {
@@ -193,6 +198,8 @@ export function useVehicleTelemetry(profile) {
                     setBwA(bwFilterValue);
                     setCurrentEmaPS(enginePsEma);
                     setCurrentBwPS(enginePsBw);
+                    setCurrentFusionEmaPS(fusionEnginePsEma);
+                    setCurrentFusionBwPS(fusionEnginePsBw);
                     setHistory(prev => {
                         const next = [...prev, {
                                 time: now,
@@ -206,6 +213,8 @@ export function useVehicleTelemetry(profile) {
                                 enginePsEma: enginePsEma,
                                 wheelPsBw: wheelPsBw,
                                 enginePsBw: enginePsBw,
+                                fusionEnginePsEma: fusionEnginePsEma,
+                                fusionEnginePsBw: fusionEnginePsBw,
                             }];
                         // Store up to 300 points (approx 20 seconds at 15fps)
                         if (next.length > 300)
@@ -216,6 +225,10 @@ export function useVehicleTelemetry(profile) {
                         setMaxEmaPS(enginePsEma);
                     if (enginePsBw > state.maxBwPS)
                         setMaxBwPS(enginePsBw);
+                    if (fusionEnginePsEma > state.maxFusionEmaPS)
+                        setMaxFusionEmaPS(fusionEnginePsEma);
+                    if (fusionEnginePsBw > state.maxFusionBwPS)
+                        setMaxFusionBwPS(fusionEnginePsBw);
                     setDebugLog(`Running... fwdA: ${forwardA.toFixed(2)} | EMA: ${emaFilterValue.toFixed(2)} | BW: ${bwFilterValue.toFixed(2)}`);
                 }
                 lastUiUpdate = now;
@@ -242,8 +255,12 @@ export function useVehicleTelemetry(profile) {
         setGravityVec(null);
         setMaxEmaPS(0);
         setMaxBwPS(0);
+        setMaxFusionEmaPS(0);
+        setMaxFusionBwPS(0);
         setCurrentEmaPS(0);
         setCurrentBwPS(0);
+        setCurrentFusionEmaPS(0);
+        setCurrentFusionBwPS(0);
         setFusionSpeedKmh(0);
         setHistory([]);
         setIsPaused(false);
@@ -251,6 +268,8 @@ export function useVehicleTelemetry(profile) {
     }, []);
     const resetMaxEmaPS = useCallback(() => setMaxEmaPS(0), []);
     const resetMaxBwPS = useCallback(() => setMaxBwPS(0), []);
+    const resetMaxFusionEmaPS = useCallback(() => setMaxFusionEmaPS(0), []);
+    const resetMaxFusionBwPS = useCallback(() => setMaxFusionBwPS(0), []);
     const togglePause = useCallback(() => {
         setIsPaused(p => !p);
     }, []);
@@ -265,14 +284,20 @@ export function useVehicleTelemetry(profile) {
         fusionSpeedKmh,
         currentEmaPS,
         currentBwPS,
+        currentFusionEmaPS,
+        currentFusionBwPS,
         maxEmaPS,
         maxBwPS,
+        maxFusionEmaPS,
+        maxFusionBwPS,
         gForce,
         rawForwardA,
         emaA,
         bwA,
         resetMaxEmaPS,
         resetMaxBwPS,
+        resetMaxFusionEmaPS,
+        resetMaxFusionBwPS,
         history,
         isPaused,
         togglePause,
