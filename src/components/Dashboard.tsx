@@ -328,12 +328,10 @@ export function Dashboard({ telemetry, profile, onBack }: DashboardProps) {
                                 itemStyle={{ fontSize: '11px', fontWeight: 'bold' }}
                                 labelStyle={{ display: 'none' }}
                                 formatter={(value: any, name: any) => {
-                                    const labels: any = { emaA: 'EMA', bwA: 'Butterworth', aY: 'forwardA' };
+                                    const labels: any = { emaA: 'EMA', bwA: 'Butterworth' };
                                     return [Number(value).toFixed(3), labels[name] || name];
                                 }}
                             />
-                            {/* raw forwardA = Purple */}
-                            <Line type="monotone" dataKey="aY" stroke="#9d00ff" strokeWidth={1.5} dot={false} isAnimationActive={false} opacity={0.5} />
 
                             {/* EMA = Neon Blue */}
                             <Line type="monotone" dataKey="emaA" stroke="var(--color-neon-blue)" strokeWidth={2} dot={false} isAnimationActive={false} />
@@ -360,9 +358,6 @@ export function Dashboard({ telemetry, profile, onBack }: DashboardProps) {
                         <span style={{ color: 'var(--color-neon-blue)' }}>EMA: {emaA.toFixed(3)}</span>
                         <span style={{ color: '#ffaa00' }}>BW: {bwA.toFixed(3)}</span>
                     </div>
-                    <div className="flex w-full justify-center mt-1 border-t border-zinc-800 pt-1">
-                        <span style={{ color: '#9d00ff', fontWeight: 'bold' }}>forwardA (m/s²): {rawForwardA.toFixed(3)}</span>
-                    </div>
                 </div>
             </div>
 
@@ -379,9 +374,12 @@ export function Dashboard({ telemetry, profile, onBack }: DashboardProps) {
                 {/* EMA Slider */}
                 <div className="flex flex-col gap-1">
                     <div className="flex justify-between items-center text-[10px] uppercase font-bold text-[var(--color-neon-blue)]">
-                        <span>Smooth</span>
-                        <span className="text-sm text-white">{emaAlpha.toFixed(2)}</span>
-                        <span>Fast</span>
+                        <span className="w-12">Smooth</span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm text-white">{emaAlpha.toFixed(2)}</span>
+                            <button onClick={() => setEmaAlpha(0.05)} className="text-[8px] bg-zinc-800 px-2 py-1 rounded text-gray-400 hover:text-white">RESET</button>
+                        </div>
+                        <span className="w-12 text-right">Fast</span>
                     </div>
                     <input
                         type="range"
@@ -398,9 +396,12 @@ export function Dashboard({ telemetry, profile, onBack }: DashboardProps) {
                 {/* Butterworth Slider */}
                 <div className="flex flex-col gap-1">
                     <div className="flex justify-between items-center text-[10px] uppercase font-bold text-[#ffaa00]">
-                        <span>Smooth</span>
-                        <span className="text-sm text-white">{bwHz.toFixed(1)} Hz</span>
-                        <span>Fast</span>
+                        <span className="w-12">Smooth</span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm text-white">{bwHz.toFixed(1)} Hz</span>
+                            <button onClick={() => setBwHz(2.0)} className="text-[8px] bg-zinc-800 px-2 py-1 rounded text-gray-400 hover:text-white">RESET</button>
+                        </div>
+                        <span className="w-12 text-right">Fast</span>
                     </div>
                     <input
                         type="range"
@@ -417,9 +418,12 @@ export function Dashboard({ telemetry, profile, onBack }: DashboardProps) {
                 {/* Fusion Slider */}
                 <div className="flex flex-col gap-1">
                     <div className="flex justify-between items-center text-[10px] uppercase font-bold text-[#00ffcc]">
-                        <span>Acc</span>
-                        <span className="text-sm text-white">{(fusionWeight * 100).toFixed(1)}% Acc</span>
-                        <span>GPS</span>
+                        <span className="w-12">Acc</span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm text-white">{(fusionWeight * 100).toFixed(1)}% Acc</span>
+                            <button onClick={() => setFusionWeight(0.98)} className="text-[8px] bg-zinc-800 px-2 py-1 rounded text-gray-400 hover:text-white">RESET</button>
+                        </div>
+                        <span className="w-12 text-right">GPS</span>
                     </div>
                     {/* The slider logically runs 0 to 1 where 0 is GPS and 1 is Acc. 
                         But we built the text 'Acc ... GPS', so 
