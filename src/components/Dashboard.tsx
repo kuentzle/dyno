@@ -15,7 +15,8 @@ export function Dashboard({ telemetry, profile, onBack }: DashboardProps) {
         currentEmaPS, currentBwPS, currentFusionEmaPS, currentFusionBwPS,
         maxEmaPS, maxBwPS, maxFusionEmaPS, maxFusionBwPS, speedKmh, fusionSpeedKmh, hasPermission, requestPermissions,
         isCalibrating, calibProgress, calibrationError, debugLog, gForce,
-        history, isPaused, togglePause, rawForwardA, emaA, bwA, resetMaxEmaPS, resetMaxBwPS, resetMaxFusionEmaPS, resetMaxFusionBwPS
+        history, isPaused, togglePause, rawForwardA, emaA, bwA, resetMaxEmaPS, resetMaxBwPS, resetMaxFusionEmaPS, resetMaxFusionBwPS,
+        emaAlpha, setEmaAlpha, bwHz, setBwHz, fusionWeight, setFusionWeight
     } = telemetry;
 
     if (hasPermission === null) {
@@ -371,6 +372,72 @@ export function Dashboard({ telemetry, profile, onBack }: DashboardProps) {
             >
                 END SESSION
             </button>
+
+            {/* FILTER CONFIGURATION SLIDERS */}
+            <div className="w-full max-w-sm glass-panel p-4 flex flex-col gap-5 mt-2 mb-8 text-xs">
+
+                {/* EMA Slider */}
+                <div className="flex flex-col gap-1">
+                    <div className="flex justify-between items-center text-[10px] uppercase font-bold text-[var(--color-neon-blue)]">
+                        <span>Smooth</span>
+                        <span className="text-sm text-white">{emaAlpha.toFixed(2)}</span>
+                        <span>Fast</span>
+                    </div>
+                    <input
+                        type="range"
+                        min="0.01"
+                        max="0.20"
+                        step="0.01"
+                        value={emaAlpha}
+                        onChange={(e) => setEmaAlpha(parseFloat(e.target.value))}
+                        className="w-full accent-[var(--color-neon-blue)] h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <div className="text-center text-[8px] text-gray-500 font-mono mt-1">y = α · neu + (1-α) · alt</div>
+                </div>
+
+                {/* Butterworth Slider */}
+                <div className="flex flex-col gap-1">
+                    <div className="flex justify-between items-center text-[10px] uppercase font-bold text-[#ffaa00]">
+                        <span>Smooth</span>
+                        <span className="text-sm text-white">{bwHz.toFixed(1)} Hz</span>
+                        <span>Fast</span>
+                    </div>
+                    <input
+                        type="range"
+                        min="0.5"
+                        max="5.0"
+                        step="0.1"
+                        value={bwHz}
+                        onChange={(e) => setBwHz(parseFloat(e.target.value))}
+                        className="w-full accent-[#ffaa00] h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <div className="text-center text-[8px] text-gray-500 font-mono mt-1">Cutoff ƒc Hz (Tiefpass 2. Ordnung)</div>
+                </div>
+
+                {/* Fusion Slider */}
+                <div className="flex flex-col gap-1">
+                    <div className="flex justify-between items-center text-[10px] uppercase font-bold text-[#00ffcc]">
+                        <span>Acc</span>
+                        <span className="text-sm text-white">{(fusionWeight * 100).toFixed(1)}% Acc</span>
+                        <span>GPS</span>
+                    </div>
+                    {/* The slider logically runs 0 to 1 where 0 is GPS and 1 is Acc. 
+                        But we built the text 'Acc ... GPS', so 
+                        slider to left (min 0) = Acc (100% Acc) -> weight 1.0
+                        slider to right (max 100) = GPS (100% GPS) -> weight 0.0 */}
+                    <input
+                        type="range"
+                        min="0.80"
+                        max="0.999"
+                        step="0.001"
+                        value={fusionWeight}
+                        onChange={(e) => setFusionWeight(parseFloat(e.target.value))}
+                        className="w-full accent-[#00ffcc] h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
+                        style={{ direction: 'rtl' }} // Reverse direction so left is high weight, right is low weight
+                    />
+                    <div className="text-center text-[8px] text-gray-500 font-mono mt-1">v = α · ∫Acc + (1-α) · GPS</div>
+                </div>
+            </div>
 
             {/* Debug Raw Values */}
             <div className="p-3 w-full max-w-sm bg-black/50 border border-zinc-800 rounded-lg text-xs font-mono text-gray-500 break-words opacity-70 mb-8">

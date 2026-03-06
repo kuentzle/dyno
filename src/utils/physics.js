@@ -52,16 +52,36 @@ export function msToKmh(ms) {
  * Configured for fs=60Hz, fc=2Hz.
  */
 export class ButterworthFilter {
-    constructor() {
+    constructor(fc = 2.0, fs = 60) {
         this.x1 = 0;
         this.x2 = 0;
         this.y1 = 0;
         this.y2 = 0;
+        // We initialize with default fs=60Hz, fc=2Hz.
         this.b0 = 0.0095;
         this.b1 = 0.0190;
         this.b2 = 0.0095;
         this.a1 = -1.7055;
         this.a2 = 0.7436;
+        this.updateCoefficients(fc, fs);
+    }
+    updateCoefficients(fc, fs = 60) {
+        // Pre-warp the cutoff frequency
+        const w0 = 2 * Math.PI * fc;
+        const T = 1 / fs;
+        const preWarpedW0 = (2 / T) * Math.tan((w0 * T) / 2);
+        // Analog prototype denominator: s^2 + sqrt(2)*w0*s + w0^2
+        // Bilinear transform substitution: s = (2/T) * (1 - z^-1) / (1 + z^-1)
+        const Q = 1 / Math.sqrt(2); // Butterworth Q factor
+        const omega = 2 * Math.PI * fc / fs;
+        const alpha = Math.sin(omega) / (2 * Q);
+        const cosW = Math.cos(omega);
+        const a0 = 1 + alpha;
+        this.b0 = (1 - cosW) / 2 / a0;
+        this.b1 = (1 - cosW) / a0;
+        this.b2 = (1 - cosW) / 2 / a0;
+        this.a1 = -2 * cosW / a0;
+        this.a2 = (1 - alpha) / a0;
     }
     filter(x0) {
         const y0 = (this.b0 * x0) + (this.b1 * this.x1) + (this.b2 * this.x2)

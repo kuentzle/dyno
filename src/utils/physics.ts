@@ -71,11 +71,40 @@ export class ButterworthFilter {
     private y1 = 0;
     private y2 = 0;
 
-    private readonly b0 = 0.0095;
-    private readonly b1 = 0.0190;
-    private readonly b2 = 0.0095;
-    private readonly a1 = -1.7055;
-    private readonly a2 = 0.7436;
+    // We initialize with default fs=60Hz, fc=2Hz.
+    private b0 = 0.0095;
+    private b1 = 0.0190;
+    private b2 = 0.0095;
+    private a1 = -1.7055;
+    private a2 = 0.7436;
+
+    constructor(fc: number = 2.0, fs: number = 60) {
+        this.updateCoefficients(fc, fs);
+    }
+
+    updateCoefficients(fc: number, fs: number = 60) {
+        // Pre-warp the cutoff frequency
+        const w0 = 2 * Math.PI * fc;
+        const T = 1 / fs;
+        const preWarpedW0 = (2 / T) * Math.tan((w0 * T) / 2);
+
+        // Analog prototype denominator: s^2 + sqrt(2)*w0*s + w0^2
+        // Bilinear transform substitution: s = (2/T) * (1 - z^-1) / (1 + z^-1)
+
+        const Q = 1 / Math.sqrt(2); // Butterworth Q factor
+        const omega = 2 * Math.PI * fc / fs;
+        const alpha = Math.sin(omega) / (2 * Q);
+        const cosW = Math.cos(omega);
+
+        const a0 = 1 + alpha;
+
+        this.b0 = (1 - cosW) / 2 / a0;
+        this.b1 = (1 - cosW) / a0;
+        this.b2 = (1 - cosW) / 2 / a0;
+
+        this.a1 = -2 * cosW / a0;
+        this.a2 = (1 - alpha) / a0;
+    }
 
     filter(x0: number): number {
         const y0 = (this.b0 * x0) + (this.b1 * this.x1) + (this.b2 * this.x2)

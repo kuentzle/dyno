@@ -44,7 +44,21 @@ export function useVehicleTelemetry(profile: VehicleProfile) {
         fusionEnginePsEma: number,
         fusionEnginePsBw: number
     }[]>([]);
+
     const [isPaused, setIsPaused] = useState(false);
+
+    // Filter configuration
+    const [emaAlpha, setEmaAlpha] = useState(0.05);
+    const [bwHz, setBwHz] = useState(2.0);
+    const [fusionWeight, setFusionWeight] = useState(0.98); // 0.98 = 98% Acc, 2% GPS
+
+    // Store Butterworth instance in ref so we can update it without recreating it entirely
+    const bwFilterRef = useRef(new ButterworthFilter(2.0, 60));
+
+    // Update butterworth coefficients when bwHz changes
+    useEffect(() => {
+        bwFilterRef.current.updateCoefficients(bwHz, 60);
+    }, [bwHz]);
 
     const requestPermissions = useCallback(async () => {
         setDebugLog("Requesting permissions...");
@@ -87,10 +101,10 @@ export function useVehicleTelemetry(profile: VehicleProfile) {
         return () => navigator.geolocation.clearWatch(geoId);
     }, [hasPermission]);
 
-    const stateRef = useRef({ isCalibrating, gravityVec, speedKmh, fusionSpeedKmh, profile, maxEmaPS, maxBwPS, maxFusionEmaPS, maxFusionBwPS, isPaused });
+    const stateRef = useRef({ isCalibrating, gravityVec, speedKmh, fusionSpeedKmh, profile, maxEmaPS, maxBwPS, maxFusionEmaPS, maxFusionBwPS, isPaused, emaAlpha, fusionWeight });
     useEffect(() => {
-        stateRef.current = { isCalibrating, gravityVec, speedKmh, fusionSpeedKmh, profile, maxEmaPS, maxBwPS, maxFusionEmaPS, maxFusionBwPS, isPaused };
-    }, [isCalibrating, gravityVec, speedKmh, fusionSpeedKmh, profile, maxEmaPS, maxBwPS, maxFusionEmaPS, maxFusionBwPS, isPaused]);
+        stateRef.current = { isCalibrating, gravityVec, speedKmh, fusionSpeedKmh, profile, maxEmaPS, maxBwPS, maxFusionEmaPS, maxFusionBwPS, isPaused, emaAlpha, fusionWeight };
+    }, [isCalibrating, gravityVec, speedKmh, fusionSpeedKmh, profile, maxEmaPS, maxBwPS, maxFusionEmaPS, maxFusionBwPS, isPaused, emaAlpha, fusionWeight]);
 
     // --- ACCELEROMETER FUSION ---
     useEffect(() => {
@@ -104,13 +118,10 @@ export function useVehicleTelemetry(profile: VehicleProfile) {
         let totalEventsCount = 0;
 
         let emaFilterValue = 0;
-        const ALPHA = 0.05;
-        const bwFilter = new ButterworthFilter();
 
         // Fusion Speed Variables
         let lastMotionTime = performance.now();
         let currentFusionSpeedMs = 0;
-        const COMPLEMENTARY_ALPHA = 0.98; // 98% trust in integrated accelerometer, 2% trust in GPS
 
         const handleMotion = (event: DeviceMotionEvent) => {
             const nowTime = performance.now();
@@ -202,8 +213,8 @@ export function useVehicleTelemetry(profile: VehicleProfile) {
             const forwardA = -(ay * (gVec.fwdY ?? 0) + az * (gVec.fwdZ ?? 1));
 
             // Apply dual filters
-            emaFilterValue = emaFilterValue === 0 ? forwardA : ALPHA * forwardA + (1 - ALPHA) * emaFilterValue;
-            const bwFilterValue = bwFilter.filter(forwardA);
+            emaFilterValue = emaFilterValue === 0 ? forwardA : state.emaAlpha * forwardA + (1 - state.emaAlpha) * emaFilterValue;
+            const bwFilterValue = bwFilterRef.current.filter(forwardA);
 
             // --- FUSION SPEED CALCULATION (Complementary Filter) ---
             // 1. Integrate the clean acceleration (Butterworth) to get temporary speed
@@ -219,7 +230,7 @@ export function useVehicleTelemetry(profile: VehicleProfile) {
             // If GPS says 50km/h (13.89 m/s) and we integrated 52km/h (14.44 m/s), 
             // this gently corrects the drift every frame without snapping
             const gpsSpeedMs = state.speedKmh / 3.6;
-            currentFusionSpeedMs = COMPLEMENTARY_ALPHA * currentFusionSpeedMs + (1 - COMPLEMENTARY_ALPHA) * gpsSpeedMs;
+            currentFusionSpeedMs = state.fusionWeight * currentFusionSpeedMs + (1 - state.fusionWeight) * gpsSpeedMs;
 
             const fusionKmh = currentFusionSpeedMs * 3.6;
 
@@ -358,6 +369,12 @@ export function useVehicleTelemetry(profile: VehicleProfile) {
         history,
         isPaused,
         togglePause,
+        emaAlpha,
+        setEmaAlpha,
+        bwHz,
+        setBwHz,
+        fusionWeight,
+        setFusionWeight,
         reset
     };
 }
